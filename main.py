@@ -6,6 +6,8 @@ from config import utelegram_config
 import utelegram
 import network
 import utime
+import ujson
+from umqtt.simple import MQTTClient
 
 debug = False
 
@@ -55,13 +57,38 @@ def handle_temperature(message):
     chat_id = message['message']['chat']['id']
     dht_sensor.measure()
     temperature = dht_sensor.temperature()
+    publish_data_to_favoriot(temperature, "temperature")
     bot.send(chat_id, "Current temperature: {:.1f} Celcius".format(temperature))
 
 def handle_humidity(message):
     chat_id = message['message']['chat']['id']
     dht_sensor.measure()
     humidity = dht_sensor.humidity()
+    publish_data_to_favoriot(humidity, "humidity")
     bot.send(chat_id, "Current humidity: {:.1f} %".format(humidity))
+    
+def publish_data_to_favoriot(data, data_type):
+  
+    token = 'YOUR FAVORIOT DEVICE ACCESS TOKEN'
+    
+    mqtt_broker = "mqtt.favoriot.com"
+    mqtt_client_id = "YOUR CLIENT NAME (ANY NAME)"
+    
+    mqtt_topic = token + "/v2/streams"
+
+    mqtt_client = MQTTClient(mqtt_client_id, mqtt_broker, user=token, password=token)
+    mqtt_client.connect()
+
+    dat = {
+        "device_developer_id": "YOUR DEVICE DEVELOPER NAME",
+        "data": {
+          data_type: data, 
+        }
+    }
+    payload = str(ujson.dumps(dat))
+
+    mqtt_client.publish(mqtt_topic, payload)
+    mqtt_client.disconnect()
 
 if sta_if.isconnected():
     bot = utelegram.ubot(utelegram_config['token'])
